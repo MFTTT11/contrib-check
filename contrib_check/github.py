@@ -10,7 +10,7 @@ API = 'https://api.github.com'
 
 
 def get_json(path: str, token: str | None = None, timeout: float = 15):
-    headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'bounty-scout/0.1',
+    headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'contrib-check/0.1',
                'X-GitHub-Api-Version': '2022-11-28'}
     token = token if token is not None else os.environ.get('GITHUB_TOKEN')
     if token:

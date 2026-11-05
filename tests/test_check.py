@@ -1,7 +1,7 @@
 import datetime as dt
 import unittest
 
-from bounty_scout.check import assess
+from contrib_check.check import assess
 
 NOW = dt.datetime(2026, 11, 5, tzinfo=dt.timezone.utc)
 

@@ -1,9 +1,9 @@
-# bounty-scout
+# contrib-check
 
-Check whether an open-source bounty is still worth your time **before** you start coding.
+Check whether an open-source issue is still worth your time **before** you start contributing.
 
-Bounty issues often look open while several pull requests are already competing for them, or while the
-repository has stopped merging. `bounty-scout` reads public GitHub data and tells you, with sources:
+Issues — especially ones with a bounty — often look open while several pull requests are already
+competing for them, or while the repository has stopped merging. `contrib-check` reads public GitHub data and tells you, with sources:
 
 - is the issue open and unassigned?
 - does it carry a bounty label or a stated amount (USD, USDC, ERG, SigUSD, SOL, ETH)?
@@ -15,7 +15,7 @@ A lookup that fails is reported as `unknown` — never as a positive signal.
 ## Usage
 
 ```sh
-python -m bounty_scout ergoplatform/ergo#1905 --me your-login
+python -m contrib_check ergoplatform/ergo#1905 --me your-login
 ```
 
 ```json
@@ -36,7 +36,7 @@ No dependencies beyond the Python 3.10+ standard library.
 
 ```sh
 pip install .
-bounty-scout owner/repo#123
+contrib-check owner/repo#123
 ```
 
 ## Tests

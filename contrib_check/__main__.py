@@ -1,4 +1,4 @@
-"""CLI: python -m bounty_scout owner/repo#123 [--me LOGIN]"""
+"""CLI: python -m contrib_check owner/repo#123 [--me LOGIN]"""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ from .check import assess
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog='bounty-scout', description=__doc__)
+    p = argparse.ArgumentParser(prog='contrib-check', description=__doc__)
     p.add_argument('target', help='owner/repo#issue')
     p.add_argument('--me', help='your GitHub login (your own PRs are not counted as competition)')
     p.add_argument('--max-competing', type=int, default=1)
