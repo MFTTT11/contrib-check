@@ -1,0 +1,37 @@
+name: forge-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: Jira site to install on (e.g. your-team.atlassian.net)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/jira-forge
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+      FORGE_APP_ID: ${{ secrets.FORGE_APP_ID }}
+      SITE: ${{ inputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Use the registered app id
+        run: |
+          [ -n "$FORGE_APP_ID" ] || { echo "FORGE_APP_ID secret is missing"; exit 1; }
+          sed -i "s#ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000#$FORGE_APP_ID#" manifest.yml
+      - run: npx --yes @forge/cli settings set usage-analytics false
+      - run: npx --yes @forge/cli deploy --non-interactive --environment development
+      - run: npx --yes @forge/cli install --non-interactive --upgrade --site "$SITE" --product jira --environment development

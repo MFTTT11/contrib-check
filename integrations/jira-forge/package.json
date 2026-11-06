@@ -1,0 +1,18 @@
+{
+  "name": "work-check-forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jira issue panel: is someone already doing this, or is it already done?",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@forge/api": "^5.0.0",
+    "@forge/bridge": "^4.0.0",
+    "@forge/react": "^11.0.0",
+    "@forge/resolver": "^1.6.0",
+    "react": "^18.2.0"
+  }
+}

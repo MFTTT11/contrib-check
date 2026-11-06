@@ -76,6 +76,11 @@ few minutes. Rate-limited requests wait for the reset (at most 65 s) and are ret
 The ranked table goes to the job summary and the JSON report path is in the `report` output.
 This repository runs it weekly (`.github/workflows/radar.yml`) as an example.
 
+### Jira (Atlassian Forge)
+
+`integrations/jira-forge` is a Jira issue panel that applies the same checks to a linked GitHub issue and
+looks for overlapping open issues in the same Jira project. See its [README](integrations/jira-forge/README.md).
+
 ## Install
 
 No dependencies beyond the Python 3.10+ standard library.

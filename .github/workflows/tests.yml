@@ -22,3 +22,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover -s tests -t . -v
       - run: python -m contrib_check --help
+
+  forge-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/jira-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
