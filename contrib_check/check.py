@@ -115,8 +115,11 @@ def discussion(issue_data, comments, now, me: str | None = None, recent_days: in
     return {'claims': claims, 'done_remarks': done}
 
 
-def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = None, max_competing: int = 1):
+def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = None, max_competing: int = 1,
+           cache: dict | None = None):
+    """Assess one issue. `cache` (optional dict) reuses per-repository lookups across calls."""
     now = now or dt.datetime.now(UTC)
+    cache = {} if cache is None else cache
     report = {'repo': repo, 'issue': issue, 'checked_at': now.isoformat(), 'signals': {}, 'verdict': 'unknown',
               'reasons': [], 'notes': []}
     sig = report['signals']
@@ -165,12 +168,15 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
             sig['discussion'] = dict(discussion(data, comments, now, me), status='ok', comments_read=len(comments))
 
     since = (now - dt.timedelta(days=14)).date().isoformat()
-    merged, err = _safe(search_issues, f'repo:{repo} is:pr is:merged merged:>={since}', fetch=fetch, per_page=5)
-    if err or not isinstance(merged, dict):
-        sig['activity'] = {'status': 'unknown', 'error': err}
-    else:
-        sig['activity'] = {'status': 'ok', 'merged_prs_14d': merged.get('total_count'),
-                           'examples': [i.get('html_url') for i in merged.get('items', [])[:3]]}
+    key = ('activity', repo, since)
+    if key not in cache:
+        merged, err = _safe(search_issues, f'repo:{repo} is:pr is:merged merged:>={since}', fetch=fetch, per_page=5)
+        if err or not isinstance(merged, dict):
+            cache[key] = {'status': 'unknown', 'error': err}
+        else:
+            cache[key] = {'status': 'ok', 'merged_prs_14d': merged.get('total_count'),
+                          'examples': [i.get('html_url') for i in merged.get('items', [])[:3]]}
+    sig['activity'] = dict(cache[key])
 
     reasons = report['reasons']
     issue_sig, comp, act = sig['issue'], sig['competition'], sig['activity']
