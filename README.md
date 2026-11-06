@@ -62,6 +62,20 @@ worth a look first, then fewer reasons to skip. Add `--json` for machine-readabl
 GitHub's search API allows few requests per minute without a token, so a scan of 15 issues can take a
 few minutes. Rate-limited requests wait for the reset (at most 65 s) and are retried once.
 
+### GitHub Action
+
+```yaml
+- uses: MFTTT11/contrib-check@main
+  with:
+    target: tscircuit            # or owner/repo
+    labels: |                    # optional extra bounty labels
+      Bounty - 100 SigUSD
+    limit: '15'
+```
+
+The ranked table goes to the job summary and the JSON report path is in the `report` output.
+This repository runs it weekly (`.github/workflows/radar.yml`) as an example.
+
 ## Install
 
 No dependencies beyond the Python 3.10+ standard library.

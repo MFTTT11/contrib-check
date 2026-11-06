@@ -1,0 +1,52 @@
+name: contrib-check scan
+description: Find and rank the open bounty issues of a GitHub organization or repository.
+branding:
+  icon: search
+  color: green
+inputs:
+  target:
+    description: Organization (e.g. tscircuit) or owner/repo
+    required: true
+  labels:
+    description: Extra bounty labels to search for, one per line
+    required: false
+    default: ''
+  limit:
+    description: Assess at most this many issues
+    required: false
+    default: '15'
+  token:
+    description: Token for the GitHub API (read-only use)
+    required: false
+    default: ${{ github.token }}
+outputs:
+  report:
+    description: Path of the JSON report
+    value: ${{ steps.scan.outputs.report }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - id: scan
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        TARGET: ${{ inputs.target }}
+        LABELS: ${{ inputs.labels }}
+        LIMIT: ${{ inputs.limit }}
+        OUT: ${{ runner.temp }}/contrib-check-${{ github.run_id }}.json
+      run: |
+        args=()
+        while IFS= read -r label; do
+          [ -n "$label" ] && args+=(--label "$label")
+        done <<< "$LABELS"
+        python -m contrib_check scan "$TARGET" --limit "$LIMIT" --json "${args[@]}" > "$OUT"
+        python - "$OUT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+        import json, sys
+        from contrib_check.scan import table
+        print('```text'); print(table(json.load(open(sys.argv[1])))); print('```')
+        PY
+        echo "report=$OUT" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,24 @@
+name: bounty radar
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Organization or owner/repo
+        default: tscircuit
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          target: ${{ inputs.target || 'tscircuit' }}
+          limit: '10'

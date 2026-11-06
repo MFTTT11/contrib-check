@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Composite GitHub Action (`action.yml`): runs `scan` and writes the ranked table to the job summary.
+- Weekly example workflow (`radar.yml`).
+
 ## 0.4.0 — 2026-11-06
 
 - New `scan` command: find the open bounty issues of an organization or repository and rank them.
