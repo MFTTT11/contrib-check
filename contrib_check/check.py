@@ -1,4 +1,4 @@
-"""Assess one GitHub bounty issue: is it open, claimed, crowded, and is the repo merging?
+"""Assess one GitHub bounty issue: is it open, claimed, crowded, already done, and is the repo merging?
 
 Every signal is reported with its source. A failed lookup is 'unknown', never
 treated as a positive signal.
@@ -57,9 +57,68 @@ def likely_fixed(issue_title: str, merged_items, min_overlap: int = 3, min_ratio
     return out
 
 
+CLAIM = re.compile(
+    r"(?i)\b(?:I(?:'ll| will|'m going to| am going to)\s+(?:open|submit|send|raise|create|file|make)\s+"
+    r"(?:a\s+|the\s+|my\s+)?(?:PR|pull request|fix)"
+    r"|I(?:'m| am)\s+(?:currently\s+|already\s+)?working on (?:this|it|a fix)"
+    r"|(?:can|could|may) I (?:work on|take|pick up) (?:this|it)"
+    r"|I(?:'d| would) like to (?:work on|take|pick up) (?:this|it)"
+    r"|assign (?:this |it )?to me)|(?<!\w)/attempt\b")
+DONE = re.compile(
+    r"(?i)\b(?:(?:can|should|could) be closed"
+    r"|already (?:done|fixed|implemented|resolved|merged|has the changes)"
+    r"|(?:fixed|resolved|addressed|implemented) (?:in|by|via) (?:#\d+|https://github\.com/\S+/pull/\d+)"
+    r"|(?:is|looks|seems) (?:obsolete|outdated|no longer (?:relevant|needed|valid)))")
+MAINTAINER = frozenset({'OWNER', 'MEMBER', 'COLLABORATOR'})
+
+
+def _own_words(body: str) -> str:
+    """Body text without fenced code blocks and quoted lines (quotes repeat other people)."""
+    body = re.sub(r'(?s)```.*?```', ' ', str(body or ''))
+    return '\n'.join(line for line in body.splitlines() if not line.lstrip().startswith('>'))
+
+
+def _when(value):
+    try:
+        return dt.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except ValueError:
+        return None
+
+
+def discussion(issue_data, comments, now, me: str | None = None, recent_days: int = 14):
+    """Claims to work on the issue and remarks that it is already done.
+
+    The issue text is checked for claims (a reporter announcing their own PR);
+    comments are checked for claims and for 'can be closed' / 'already fixed'.
+    A remark counts as authoritative only from an OWNER, MEMBER or COLLABORATOR.
+    """
+    cutoff = now - dt.timedelta(days=recent_days)
+    entries = []
+    if isinstance(issue_data, dict):
+        entries.append(('issue', issue_data))
+    entries += [('comment', c) for c in comments or [] if isinstance(c, dict)]
+    claims, done = [], []
+    for where, item in entries:
+        login = (item.get('user') or {}).get('login', '')
+        if me and login.casefold() == me.casefold():
+            continue
+        text = _own_words(item.get('body'))
+        when = _when(item.get('created_at'))
+        base = {'by': login, 'where': where, 'at': item.get('created_at'), 'url': item.get('html_url')}
+        m = CLAIM.search(text)
+        if m:
+            claims.append(dict(base, quote=m.group(0), recent=bool(when and when >= cutoff)))
+        m = DONE.search(text) if where == 'comment' else None
+        if m:
+            association = item.get('author_association') or ''
+            done.append(dict(base, quote=m.group(0), association=association, maintainer=association in MAINTAINER))
+    return {'claims': claims, 'done_remarks': done}
+
+
 def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = None, max_competing: int = 1):
     now = now or dt.datetime.now(UTC)
-    report = {'repo': repo, 'issue': issue, 'checked_at': now.isoformat(), 'signals': {}, 'verdict': 'unknown', 'reasons': []}
+    report = {'repo': repo, 'issue': issue, 'checked_at': now.isoformat(), 'signals': {}, 'verdict': 'unknown',
+              'reasons': [], 'notes': []}
     sig = report['signals']
 
     data, err = _safe(fetch, f'/repos/{repo}/issues/{issue}')
@@ -97,6 +156,14 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         else:
             sig['possibly_fixed'] = {'status': 'ok', 'merged_prs': likely_fixed(data.get('title', ''), recent.get('items'))}
 
+    if sig['issue'].get('status') == 'ok' and isinstance(data, dict):
+        comments, err = _safe(fetch, f'/repos/{repo}/issues/{issue}/comments?per_page=100')
+        if err or not isinstance(comments, list):
+            # The issue text is still checked; unread comments are reported, not assumed empty.
+            sig['discussion'] = dict(discussion(data, [], now, me), status='partial', error=err or 'unexpected response')
+        else:
+            sig['discussion'] = dict(discussion(data, comments, now, me), status='ok', comments_read=len(comments))
+
     since = (now - dt.timedelta(days=14)).date().isoformat()
     merged, err = _safe(search_issues, f'repo:{repo} is:pr is:merged merged:>={since}', fetch=fetch, per_page=5)
     if err or not isinstance(merged, dict):
@@ -122,5 +189,18 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         reasons.append('a PR merged after the issue was opened looks like the same fix')
     if not act['merged_prs_14d']:
         reasons.append('no merged PRs in the last 14 days')
+    disc = sig.get('discussion') or {}
+    if any(d['maintainer'] for d in disc.get('done_remarks', [])):
+        reasons.append('a maintainer said the issue can be closed or is already done')
+    elif disc.get('done_remarks'):
+        report['notes'].append('a commenter said the issue is already done (not confirmed by a maintainer)')
+    recent = sorted({c['by'] for c in disc.get('claims', []) if c['recent']})
+    if recent:
+        reasons.append('claimed in the last 14 days by ' + ', '.join(recent))
+    older = sorted({c['by'] for c in disc.get('claims', []) if not c['recent']} - set(recent))
+    if older:
+        report['notes'].append('older claims by ' + ', '.join(older))
+    if disc.get('status') == 'partial':
+        report['notes'].append('comments could not be read; only the issue text was checked for claims')
     report['verdict'] = 'skip' if reasons else 'worth_a_look'
     return report

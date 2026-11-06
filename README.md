@@ -10,6 +10,10 @@ competing for them, or while the repository has stopped merging. `contrib-check`
 - how many **open pull requests already reference it** (your own PRs are excluded with `--me`)?
 - was a PR **already merged for it** without mentioning the issue number (title-overlap heuristic)?
 - has the repository **merged anything in the last 14 days**?
+- did someone **claim it recently** — the reporter announcing their own PR ("I'll open a PR"), or a
+  commenter in the last 14 days ("I'm working on this", "/attempt")?
+- did a **maintainer say it is already done** ("can be closed", "already fixed", "fixed in #123")?
+  The same remark from a non-maintainer is reported as a note, not a reason to skip.
 
 A lookup that fails is reported as `unknown` — never as a positive signal.
 
@@ -22,7 +26,8 @@ python -m contrib_check ergoplatform/ergo#1905 --me your-login
 ```json
 {
   "verdict": "skip",
-  "reasons": ["3 open competing PRs"],
+  "reasons": ["3 open competing PRs", "claimed in the last 14 days by someone"],
+  "notes": ["older claims by another-user"],
   "signals": { "issue": { "bounty_labels": ["B-500 SigUSD"] }, "competition": { "open_prs": [ ... ] },
                "activity": { "merged_prs_14d": 61 } }
 }
@@ -51,6 +56,10 @@ python -m unittest discover -s tests -t .
 - Competition is detected from open PRs that mention `#<issue>` in the title or body; PRs that link the
   issue only through the UI sidebar may be missed.
 - A bounty label is a signal, not proof of funding. Check the sponsor's own terms before working.
+- Claims and "already done" remarks are matched with simple English phrases. Quoted lines and code
+  blocks are ignored; other wordings, other languages and claims made elsewhere (chat, a bounty
+  platform) are missed. If the comments cannot be read, only the issue text is checked and the
+  report says so in `notes`.
 
 ## License
 

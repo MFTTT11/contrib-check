@@ -6,12 +6,17 @@ from contrib_check.check import assess
 NOW = dt.datetime(2026, 11, 5, tzinfo=dt.timezone.utc)
 
 
-def fake(issue=None, prs=(), merged=3, fail=(), merged_items=()):
-    issue = issue or {'state': 'open', 'assignees': [], 'labels': [{'name': 'Bounty 100 ERG'}], 'title': 'Fix x', 'comments': 2}
+BASE_ISSUE = {'state': 'open', 'assignees': [], 'labels': [{'name': 'Bounty 100 ERG'}], 'title': 'Fix x', 'comments': 2}
+
+
+def fake(issue=None, prs=(), merged=3, fail=(), merged_items=(), comments=()):
+    issue = issue or BASE_ISSUE
 
     def fetch(path, token=None, timeout=15):
         if any(f in path for f in fail):
             raise OSError('down')
+        if path.startswith('/repos/') and '/comments' in path:
+            return list(comments)
         if path.startswith('/repos/'):
             if 'repo_endpoint' in fail:
                 raise OSError('denied')
@@ -63,6 +68,49 @@ class AlreadyFixedTest(unittest.TestCase):
         r = assess('o/r', 7, fetch=fake(issue=issue, merged_items=[fix, other]), now=NOW)
         self.assertEqual([p['url'] for p in r['signals']['possibly_fixed']['merged_prs']], ['https://github.com/o/r/pull/9'])
         self.assertIn('a PR merged after the issue was opened looks like the same fix', r['reasons'])
+
+
+def comment(body, login='x', association='CONTRIBUTOR', at='2026-11-01T00:00:00Z'):
+    return {'body': body, 'user': {'login': login}, 'author_association': association, 'created_at': at,
+            'html_url': 'https://github.com/o/r/issues/7#issuecomment-1'}
+
+
+class DiscussionTest(unittest.TestCase):
+    def test_maintainer_saying_done_skips_the_issue(self):
+        comments = [comment('This looks already done.', 'c1'), comment('yes, can be closed indeed', 'm1', 'COLLABORATOR')]
+        r = assess('o/r', 7, fetch=fake(comments=comments), now=NOW)
+        self.assertEqual(r['verdict'], 'skip')
+        self.assertIn('a maintainer said the issue can be closed or is already done', r['reasons'])
+
+    def test_done_remark_from_non_maintainer_is_only_a_note(self):
+        comments = [comment('This should be closed, current already has the changes.', 'c1')]
+        r = assess('o/r', 7, fetch=fake(comments=comments), now=NOW)
+        self.assertEqual(r['verdict'], 'worth_a_look')
+        self.assertIn('a commenter said the issue is already done (not confirmed by a maintainer)', r['notes'])
+
+    def test_reporter_announcing_a_pr_is_a_recent_claim(self):
+        issue = dict(BASE_ISSUE, body="Proposed fix: follow the cursor.\n\nI'll open a PR for (1) with tests.",
+                     user={'login': 'rep'}, created_at='2026-11-02T18:29:31Z')
+        r = assess('o/r', 7, fetch=fake(issue=issue), now=NOW)
+        self.assertEqual(r['verdict'], 'skip')
+        self.assertIn('claimed in the last 14 days by rep', r['reasons'])
+
+    def test_old_quoted_and_own_claims_do_not_block(self):
+        comments = [comment('Can I work on this?', 'old', at='2025-01-01T00:00:00Z'),
+                    comment("> I'll open a PR\nThanks, sounds good.", 'q'),
+                    comment("```\nI'm working on this\n```", 'q2'),
+                    comment("I'm working on this", 'me')]
+        r = assess('o/r', 7, fetch=fake(comments=comments), now=NOW, me='me')
+        self.assertEqual(r['verdict'], 'worth_a_look')
+        self.assertEqual([c['by'] for c in r['signals']['discussion']['claims']], ['old'])
+        self.assertIn('older claims by old', r['notes'])
+
+    def test_unreadable_comments_still_check_issue_text(self):
+        issue = dict(BASE_ISSUE, body='I am working on this.', user={'login': 'rep'}, created_at='2026-11-04T00:00:00Z')
+        r = assess('o/r', 7, fetch=fake(issue=issue, fail=('/comments',)), now=NOW)
+        self.assertEqual(r['signals']['discussion']['status'], 'partial')
+        self.assertIn('claimed in the last 14 days by rep', r['reasons'])
+        self.assertIn('comments could not be read; only the issue text was checked for claims', r['notes'])
 
 
 class FallbackTest(unittest.TestCase):
