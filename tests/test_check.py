@@ -59,6 +59,20 @@ class AssessTest(unittest.TestCase):
         self.assertEqual(r['signals']['competition']['status'], 'unknown')
 
 
+class PaidLabelTest(unittest.TestCase):
+    def test_rewarded_label_means_bounty_already_paid(self):
+        issue = dict(BASE_ISSUE, labels=[{'name': '💎 Bounty'}, {'name': '💰 Rewarded'}])
+        r = assess('o/r', 7, fetch=fake(issue=issue), now=NOW)
+        self.assertEqual(r['verdict'], 'skip')
+        self.assertIn('bounty already marked as paid (💰 Rewarded)', r['reasons'])
+        self.assertEqual(r['signals']['issue']['paid_labels'], ['💰 Rewarded'])
+
+    def test_plain_bounty_label_is_not_paid(self):
+        r = assess('o/r', 7, fetch=fake(issue=dict(BASE_ISSUE, labels=[{'name': '💎 Bounty'}, {'name': 'unpaid work'}])), now=NOW)
+        self.assertEqual(r['signals']['issue']['paid_labels'], [])
+        self.assertEqual(r['verdict'], 'worth_a_look')
+
+
 class AlreadyFixedTest(unittest.TestCase):
     def test_merged_pr_with_same_title_words_flags_issue(self):
         issue = {'state': 'open', 'assignees': [], 'labels': [], 'title': 'Allow custom property names in kicadFootprintMetadata properties',

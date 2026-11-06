@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Issues whose bounty is already marked as paid (`💰 Rewarded`, `paid`, `bounty claimed`) are skipped.
 - Composite GitHub Action (`action.yml`): runs `scan` and writes the ranked table to the job summary.
 - Weekly example workflow (`radar.yml`).
 

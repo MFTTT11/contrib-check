@@ -70,6 +70,8 @@ DONE = re.compile(
     r"|(?:fixed|resolved|addressed|implemented) (?:in|by|via) (?:#\d+|https://github\.com/\S+/pull/\d+)"
     r"|(?:is|looks|seems) (?:obsolete|outdated|no longer (?:relevant|needed|valid)))")
 MAINTAINER = frozenset({'OWNER', 'MEMBER', 'COLLABORATOR'})
+# Labels that bounty platforms and maintainers use once a bounty has been paid out.
+PAID_LABEL = re.compile(r'(?i)rewarded|\bpaid\b|bounty[ -]?(?:claimed|awarded|completed)|💰')
 
 
 def _own_words(body: str) -> str:
@@ -139,6 +141,7 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         text = f"{data.get('title') or ''} {' '.join(labels)}"
         sig['issue'] = {'status': 'ok', 'state': data.get('state'), 'assignees': [a.get('login') for a in data.get('assignees') or []],
                         'bounty_labels': [l for l in labels if re.search(r'(?i)bount|reward|\$|💎', l)],
+                        'paid_labels': [l for l in labels if PAID_LABEL.search(l)],
                         'amount_mentions': AMOUNT.findall(text)[:5], 'comments': data.get('comments'),
                         'is_pull_request': 'pull_request' in data}
 
@@ -187,6 +190,8 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         reasons.append('issue is not open')
     if issue_sig['assignees']:
         reasons.append('issue is assigned')
+    if issue_sig.get('paid_labels'):
+        reasons.append('bounty already marked as paid (' + ', '.join(issue_sig['paid_labels']) + ')')
     if not issue_sig['bounty_labels'] and not issue_sig['amount_mentions']:
         reasons.append('no bounty label or amount on the issue')
     if len(comp['open_prs']) > max_competing:
