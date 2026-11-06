@@ -1,5 +1,7 @@
 # contrib-check
 
+[![tests](https://github.com/MFTTT11/contrib-check/actions/workflows/tests.yml/badge.svg)](https://github.com/MFTTT11/contrib-check/actions/workflows/tests.yml)
+
 Check whether an open-source issue is still worth your time **before** you start contributing.
 
 Issues — especially ones with a bounty — often look open while several pull requests are already
