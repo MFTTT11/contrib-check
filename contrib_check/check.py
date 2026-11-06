@@ -35,6 +35,28 @@ def competing_prs(repo: str, issue: int, items, exclude_author: str | None = Non
     return out
 
 
+STOP = frozenset('a an the and or of to in on for with from by is are be not when only can into as at it its this that'.split())
+
+
+def _words(text):
+    return {w for w in re.findall(r'[a-z0-9_]{3,}', str(text).lower()) if w not in STOP}
+
+
+def likely_fixed(issue_title: str, merged_items, min_overlap: int = 3, min_ratio: float = 0.5):
+    """Merged PRs whose titles share most significant words with the issue title.
+
+    Catches fixes that never mention the issue number. A heuristic signal only.
+    """
+    want = _words(issue_title)
+    out = []
+    for it in merged_items or []:
+        have = _words(it.get('title'))
+        shared = want & have
+        if want and len(shared) >= min_overlap and len(shared) / len(want) >= min_ratio:
+            out.append({'url': it.get('html_url'), 'title': it.get('title'), 'shared_words': sorted(shared)})
+    return out
+
+
 def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = None, max_competing: int = 1):
     now = now or dt.datetime.now(UTC)
     report = {'repo': repo, 'issue': issue, 'checked_at': now.isoformat(), 'signals': {}, 'verdict': 'unknown', 'reasons': []}
@@ -65,6 +87,16 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         prs = competing_prs(repo, issue, found.get('items'), me)
         sig['competition'] = {'status': 'ok', 'open_prs': prs}
 
+    created = None
+    if sig['issue'].get('status') == 'ok' and isinstance(data, dict):
+        created = str(data.get('created_at') or '')[:10] or None
+    if created:
+        recent, err = _safe(search_issues, f'repo:{repo} is:pr is:merged merged:>={created}', fetch=fetch, per_page=50)
+        if err or not isinstance(recent, dict):
+            sig['possibly_fixed'] = {'status': 'unknown', 'error': err}
+        else:
+            sig['possibly_fixed'] = {'status': 'ok', 'merged_prs': likely_fixed(data.get('title', ''), recent.get('items'))}
+
     since = (now - dt.timedelta(days=14)).date().isoformat()
     merged, err = _safe(search_issues, f'repo:{repo} is:pr is:merged merged:>={since}', fetch=fetch, per_page=5)
     if err or not isinstance(merged, dict):
@@ -86,6 +118,8 @@ def assess(repo: str, issue: int, fetch=get_json, now=None, me: str | None = Non
         reasons.append('no bounty label or amount on the issue')
     if len(comp['open_prs']) > max_competing:
         reasons.append(f"{len(comp['open_prs'])} open competing PRs")
+    if (sig.get('possibly_fixed') or {}).get('merged_prs'):
+        reasons.append('a PR merged after the issue was opened looks like the same fix')
     if not act['merged_prs_14d']:
         reasons.append('no merged PRs in the last 14 days')
     report['verdict'] = 'skip' if reasons else 'worth_a_look'

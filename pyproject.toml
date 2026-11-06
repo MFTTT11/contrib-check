@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contrib-check"
-version = "0.1.1"
+version = "0.2.0"
 description = "Check an open-source issue before contributing: competing PRs, assignment, bounty labels, repo activity."
 readme = "README.md"
 license = { text = "MIT" }

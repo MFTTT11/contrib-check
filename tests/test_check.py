@@ -6,7 +6,7 @@ from contrib_check.check import assess
 NOW = dt.datetime(2026, 11, 5, tzinfo=dt.timezone.utc)
 
 
-def fake(issue=None, prs=(), merged=3, fail=()):
+def fake(issue=None, prs=(), merged=3, fail=(), merged_items=()):
     issue = issue or {'state': 'open', 'assignees': [], 'labels': [{'name': 'Bounty 100 ERG'}], 'title': 'Fix x', 'comments': 2}
 
     def fetch(path, token=None, timeout=15):
@@ -19,7 +19,7 @@ def fake(issue=None, prs=(), merged=3, fail=()):
         if 'is%3Aissue' in path:
             return {'items': [dict(issue, html_url='https://github.com/o/r/issues/7')]}
         if 'is%3Amerged' in path:
-            return {'total_count': merged, 'items': []}
+            return {'total_count': merged, 'items': list(merged_items)}
         return {'items': list(prs)}
     return fetch
 
@@ -52,6 +52,17 @@ class AssessTest(unittest.TestCase):
         r = assess('o/r', 7, fetch=fake(fail=('is%3Aopen',)), now=NOW)
         self.assertEqual(r['verdict'], 'unknown')
         self.assertEqual(r['signals']['competition']['status'], 'unknown')
+
+
+class AlreadyFixedTest(unittest.TestCase):
+    def test_merged_pr_with_same_title_words_flags_issue(self):
+        issue = {'state': 'open', 'assignees': [], 'labels': [], 'title': 'Allow custom property names in kicadFootprintMetadata properties',
+                 'created_at': '2026-11-05T18:50:36Z'}
+        fix = {'html_url': 'https://github.com/o/r/pull/9', 'title': 'Allow custom KiCad metadata property names'}
+        other = {'html_url': 'https://github.com/o/r/pull/8', 'title': 'Bump dependencies'}
+        r = assess('o/r', 7, fetch=fake(issue=issue, merged_items=[fix, other]), now=NOW)
+        self.assertEqual([p['url'] for p in r['signals']['possibly_fixed']['merged_prs']], ['https://github.com/o/r/pull/9'])
+        self.assertIn('a PR merged after the issue was opened looks like the same fix', r['reasons'])
 
 
 class FallbackTest(unittest.TestCase):

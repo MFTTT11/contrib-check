@@ -8,6 +8,7 @@ competing for them, or while the repository has stopped merging. `contrib-check`
 - is the issue open and unassigned?
 - does it carry a bounty label or a stated amount (USD, USDC, ERG, SigUSD, SOL, ETH)?
 - how many **open pull requests already reference it** (your own PRs are excluded with `--me`)?
+- was a PR **already merged for it** without mentioning the issue number (title-overlap heuristic)?
 - has the repository **merged anything in the last 14 days**?
 
 A lookup that fails is reported as `unknown` — never as a positive signal.
