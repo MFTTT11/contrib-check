@@ -5,7 +5,7 @@ import unittest
 import urllib.error
 
 from contrib_check import github
-from contrib_check.scan import candidates, queries, scan, table
+from contrib_check.scan import candidates, mark_new, queries, scan, table
 
 NOW = dt.datetime(2026, 11, 6, tzinfo=dt.timezone.utc)
 
@@ -96,6 +96,24 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(result['results'], [])
         self.assertEqual(len(result['errors']), 3)
         self.assertIn('error: OSError for org:tscircuit is:issue is:open label:bounty', table(result))
+
+
+class NewSinceTest(unittest.TestCase):
+    def test_marks_issues_missing_from_the_previous_scan(self):
+        result = {'target': 'o', 'found': 2, 'assessed': 2, 'errors': [], 'results': [
+            {'url': 'https://github.com/o/r/issues/1', 'verdict': 'skip', 'reasons': [], 'amounts': [], 'bounty_labels': []},
+            {'url': 'https://github.com/o/r/issues/2', 'verdict': 'worth_a_look', 'reasons': [], 'amounts': [], 'bounty_labels': []}]}
+        mark_new(result, {'results': [{'url': 'https://github.com/o/r/issues/1'}]})
+        self.assertEqual([r['new'] for r in result['results']], [False, True])
+        self.assertEqual(result['new_count'], 1)
+        text = table(result)
+        self.assertIn('1 new since the previous scan', text)
+        self.assertIn('LOOK* https://github.com/o/r/issues/2', text)
+        self.assertIn('skip  https://github.com/o/r/issues/1', text)
+
+    def test_missing_previous_marks_everything_new(self):
+        result = {'results': [{'url': 'u'}]}
+        self.assertEqual(mark_new(result, None)['new_count'], 1)
 
 
 def http_error(code, **headers):

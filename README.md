@@ -57,7 +57,8 @@ skip  https://github.com/owner/repo/issues/87   [$150]  2 open competing PRs; cl
 For a single repository it also reads the repository's own bounty-like labels (for example
 `Bounty - 100 SigUSD` or `B-200 Erg`); for an organization, pass such labels with `--label`.
 The most recently updated issues are assessed first (`--limit`, default 15) and the results are ranked:
-worth a look first, then fewer reasons to skip. Add `--json` for machine-readable output.
+worth a look first, then fewer reasons to skip. Add `--json` for machine-readable output; pass an
+earlier JSON result with `--previous old.json` to mark new issues with `*` (`--only-new` lists only those).
 
 GitHub's search API allows few requests per minute without a token, so a scan of 15 issues can take a
 few minutes. Rate-limited requests wait for the reset (at most 65 s) and are retried once.

@@ -11,7 +11,7 @@ import re
 import sys
 
 from .check import assess
-from .scan import scan, table
+from .scan import mark_new, scan, table
 
 
 def _scan(argv):
@@ -22,10 +22,23 @@ def _scan(argv):
     p.add_argument('--me', help='your GitHub login (your own PRs and claims are not counted)')
     p.add_argument('--max-competing', type=int, default=1)
     p.add_argument('--json', action='store_true', help='print JSON instead of a table')
+    p.add_argument('--previous', help='JSON output of an earlier scan; issues not in it are marked new (*)')
+    p.add_argument('--only-new', action='store_true', help='with --previous, list only new issues')
     a = p.parse_args(argv)
     if not re.fullmatch(r'[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?', a.target):
         p.error('target must be an organization or owner/repo')
+    previous = None
+    if a.previous:
+        try:
+            with open(a.previous, encoding='utf-8') as fh:
+                previous = json.load(fh)
+        except (OSError, ValueError) as exc:
+            p.error(f'cannot read --previous: {exc}')
     result = scan(a.target, me=a.me, labels=a.label, limit=a.limit, max_competing=a.max_competing)
+    if previous is not None:
+        mark_new(result, previous)
+        if a.only_new:
+            result['results'] = [r for r in result['results'] if r['new']]
     print(json.dumps(result, indent=2, ensure_ascii=False) if a.json else table(result))
     return 0 if not result['errors'] or result['results'] else 2
 

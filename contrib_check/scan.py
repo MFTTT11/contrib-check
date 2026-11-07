@@ -86,13 +86,25 @@ def scan(target: str, fetch=get_json, now=None, me: str | None = None, labels=()
             'errors': errors, 'results': rows}
 
 
+def mark_new(result, previous) -> dict:
+    """Flag results whose URL is not in a previous scan result; adds `new` per row and `new_count`."""
+    seen = {r.get('url') for r in (previous or {}).get('results', []) if isinstance(r, dict)}
+    for r in result['results']:
+        r['new'] = r['url'] not in seen
+    result['new_count'] = sum(r['new'] for r in result['results'])
+    return result
+
+
 def table(result) -> str:
-    lines = [f"{result['target']}: {result['found']} bounty issues found, {result['assessed']} assessed"]
+    lines = [f"{result['target']}: {result['found']} bounty issues found, {result['assessed']} assessed"
+             + (f", {result['new_count']} new since the previous scan" if 'new_count' in result else '')]
     for r in result['results']:
         tag = {'worth_a_look': 'LOOK', 'skip': 'skip', 'unknown': '????'}.get(r['verdict'], r['verdict'])
+        if r.get('new'):
+            tag = tag + '*'
         money = ', '.join(r['amounts'] or r['bounty_labels'])[:30]
         why = '; '.join(r['reasons'])[:90]
-        lines.append(f"{tag:4}  {r['url']}  [{money}]  {why}")
+        lines.append(f"{tag:5} {r['url']}  [{money}]  {why}")
     for e in result['errors']:
         lines.append(f"error: {e['error']} for {urllib.parse.unquote(e['query'])}")
     return '\n'.join(lines)

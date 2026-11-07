@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `scan --previous old.json [--only-new]`: mark (or list only) issues that were not in an earlier scan.
 - Jira issue panel (Atlassian Forge, `integrations/jira-forge`): overlapping open issues in the project and contrib-check signals for linked GitHub issues; deploy workflow.
 - Issues whose bounty is already marked as paid (`💰 Rewarded`, `paid`, `bounty claimed`) are skipped.
 - Composite GitHub Action (`action.yml`): runs `scan` and writes the ranked table to the job summary.
