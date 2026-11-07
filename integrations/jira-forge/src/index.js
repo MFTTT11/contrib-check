@@ -1,6 +1,6 @@
 import Resolver from '@forge/resolver';
 import api, { route, fetch } from '@forge/api';
-import { adfText, githubIssueRefs, discussion, competingPrs, similarIssues, searchTerms, verdict } from './checks.js';
+import { adfText, githubIssueRefs, discussion, competingPrs, similarIssues, searchTerms, verdict, issueKey } from './checks.js';
 
 const GITHUB = 'https://api.github.com';
 const resolver = new Resolver();
@@ -44,8 +44,7 @@ async function similarInProject(issueKey, projectKey, summary) {
   return similarIssues(summary, candidates);
 }
 
-resolver.define('getReport', async ({ context }) => {
-  const key = context.extension.issue.key;
+export async function buildReport(key) {
   const res = await api.asApp().requestJira(route`/rest/api/3/issue/${key}?fields=summary,description,project`, { headers: { Accept: 'application/json' } });
   if (!res.ok) return { status: 'unknown', reasons: [`Jira returned ${res.status}`], similar: [], github: [] };
   const issue = await res.json();
@@ -56,6 +55,15 @@ resolver.define('getReport', async ({ context }) => {
     Promise.all(refs.map(checkGithubIssue)),
   ]);
   return { ...verdict({ similar, github: gh }), similar, github: gh };
-});
+}
+
+resolver.define('getReport', async ({ context }) => buildReport(context.extension.issue.key));
 
 export const handler = resolver.getDefinitions();
+
+/** Rovo action: same report for an issue key given by an agent. */
+export async function actionHandler(payload) {
+  const key = issueKey(payload?.issueKey);
+  if (!key) return { status: 'unknown', reasons: [`"${payload?.issueKey ?? ''}" is not a Jira issue key`], similar: [], github: [] };
+  return buildReport(key);
+}

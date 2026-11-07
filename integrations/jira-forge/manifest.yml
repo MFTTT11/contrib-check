@@ -7,9 +7,39 @@ modules:
       render: native
       title: Work check
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  action:
+    - key: check-work-overlap
+      name: Check work overlap
+      function: action-check
+      actionVerb: GET
+      description: >-
+        Checks a Jira issue for overlapping open issues in its project and, for a linked GitHub
+        issue, for competing pull requests, recent claims and maintainers saying it is done.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The key of the Jira issue to check, for example ENG-42.
+  rovo:agent:
+    - key: work-check-agent
+      name: Work check
+      description: Tells you whether someone is already working on an issue, or whether it is already done, before you start.
+      prompt: >-
+        You help engineers avoid duplicate work. When asked about a Jira issue, call the
+        check-work-overlap action with its key. Report the status (clear, check before starting,
+        or could not check) and every reason in plain words, and list overlapping issues with
+        their keys. Never call a result clear when the action says it could not check something.
+      conversationStarters:
+        - Is anyone already working on this issue?
+        - Check this issue for overlapping work
+      actions:
+        - check-work-overlap
   function:
     - key: resolver
       handler: index.handler
+    - key: action-check
+      handler: index.actionHandler
 resources:
   - key: main
     path: src/frontend/index.jsx

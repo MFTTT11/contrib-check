@@ -106,3 +106,9 @@ export function verdict({ similar = [], github = [] }) {
   const unknown = github.some((g) => g.error);
   return { status: reasons.length ? (unknown && reasons.every((r) => r.includes('could not be checked')) ? 'unknown' : 'check') : 'clear', reasons };
 }
+
+/** A Jira issue key from free input ("eng-42 " -> "ENG-42"), or null. */
+export function issueKey(input) {
+  const key = String(input ?? '').trim().toUpperCase();
+  return /^[A-Z][A-Z0-9_]+-\d+$/.test(key) ? key : null;
+}

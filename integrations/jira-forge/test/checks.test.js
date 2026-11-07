@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { adfText, githubIssueRefs, discussion, competingPrs, similarIssues, searchTerms, verdict } from '../src/checks.js';
+import { adfText, githubIssueRefs, discussion, competingPrs, similarIssues, searchTerms, verdict, issueKey } from '../src/checks.js';
 
 const NOW = new Date('2026-11-06T00:00:00Z');
 
@@ -49,4 +49,12 @@ test('verdict is clear only when every signal is clean', () => {
   assert.equal(v.status, 'check');
   assert.equal(v.reasons.length, 2);
   assert.equal(verdict({ github: [{ url: 'g', error: 'GitHub 403' }] }).status, 'unknown');
+});
+
+test('issueKey normalises agent input and rejects anything else', () => {
+  assert.equal(issueKey(' eng-42 '), 'ENG-42');
+  assert.equal(issueKey('ENG_OPS-7'), 'ENG_OPS-7');
+  assert.equal(issueKey('42'), null);
+  assert.equal(issueKey('ENG-42; DROP'), null);
+  assert.equal(issueKey(undefined), null);
 });

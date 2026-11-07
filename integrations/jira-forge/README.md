@@ -10,6 +10,9 @@ Before someone starts on a Jira issue, **Work check** answers two questions in t
    reference it, people who claimed it in the last 14 days, and maintainers saying it can be closed or
    is already fixed. Quoted lines and code blocks are ignored.
 
+The same check is a **Rovo action** (`check-work-overlap`) used by the **Work check** Rovo agent, so
+you can ask in Rovo chat: *"Is anyone already working on ENG-42?"*
+
 The panel shows **No overlap found**, **Check before starting** (with the reasons) or **Could not
 check**. A failed lookup is never reported as clear.
 
@@ -17,11 +20,11 @@ check**. A failed lookup is never reported as clear.
 
 | Path | What |
 | --- | --- |
-| `manifest.yml` | `jira:issuePanel` with a UI Kit frontend and one resolver; scope `read:jira-work`; egress only to `api.github.com` |
+| `manifest.yml` | `jira:issuePanel` (UI Kit), Rovo `action` + `rovo:agent`; scope `read:jira-work`; egress only to `api.github.com` |
 | `src/index.js` | Resolver: reads the issue, runs a JQL text search in the project, checks linked GitHub issues |
 | `src/checks.js` | Pure logic (ADF text, link extraction, claims, done remarks, competing PRs, similarity, verdict) |
 | `src/frontend/index.jsx` | UI Kit panel |
-| `test/checks.test.js` | `npm test` (Node's built-in test runner, no extra dependencies) |
+| `test/` | `npm test`: logic tests and validation of `manifest.yml` against the official `@forge/manifest` schema |
 
 ## Run it on your Jira site
 
